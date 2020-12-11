@@ -29,7 +29,8 @@
 import numpy as np
 import time
 import curses as cu
-#import sys
+import sys
+import argparse
 np.random.seed(int(time.time()))
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(linewidth=200)
@@ -151,6 +152,7 @@ class Life:
 	def reSeed(self):
 		self.seedRandom()
 		self.genWmapCached()
+		self.gen=1
 
 	def ng(self):
 		self.nextGeneration()
@@ -158,11 +160,12 @@ class Life:
 		self.gen+=1
 
 def termResize(y,x):
-	#sys.stdout.write("\x1b[8;{rows};{cols}t".format(rows=y, cols=x))
 	print("\x1b[8;{rows};{cols}t".format(rows=y, cols=x))
+	#resize doens't work on linux
+	#cu.resizeterm(y,x)
 
 def testLIFE():
-	w = Life()
+	w = Life(80,24)
 	w.seedRandom()
 	print(w.arr)
 	print(w.warr)
@@ -187,11 +190,11 @@ def testLIFE():
 	print("getNeigh 15,0") 
 	print(w.getNeigh(15,0))
 
-	#w.genWmap()
 	w.genNmap()
 	w.genWmapCached()
 	print(w.arr)
 	print(w.warr)
+	print(w.neigh)
 	
 	for i in range(0,3):
 		#print(chr(27) + "[2J")
@@ -247,9 +250,15 @@ class Game:
 				self.cDrawFrameDebug(l,w)
 			elif drawMode==3:
 				self.cDrawFrameDebug2(l,w)
-			w.addnstr(l.sizey-1, 0, "-=- generation: {} -=-".format(l.gen), 25)
-			w.addnstr(l.sizey-1, 25, "delay: {}".format(delay), 10)
 			
+			try:
+				w.addnstr(l.sizey-1, 0, "-=- generation: {} -=-".format(l.gen), 25)
+				w.addnstr(l.sizey-1, 25, "delay: {}".format(delay), 10)
+			except (cu.error):
+				termResize(l.sizey, l.sizex)
+				pass
+				#cu.endwin()
+				#exit(1)
 			
 			time.sleep(delay)
 			
@@ -286,64 +295,82 @@ class Game:
 		for y in range(0, l.sizey-1):
 			for x in range(0, l.sizex-1):
 				if l.arr[y,x]==1:
-					w.addch(y,
-						x,
-						str(int(l.warr[y,x])),
-						cu.color_pair(int(l.warr[y,x])+1))
+					ch=str(int(l.warr[y,x]))
+					col=int(l.warr[y,x])+1
 				if l.arr[y,x]==0:
-					w.addch(y,
-						x,
-						' ',
-						cu.color_pair(1))
+					ch=' '
+					col=1
 				if l.arr[y,x]==0 and l.warr[y,x]==3:
-					w.addch(y,
-						x,
-						str(int(l.warr[y,x])),
-						cu.color_pair(99))
+					ch=str(int(l.warr[y,x]))
+					col=99
+				try:
+					w.addch(y, x, ch, cu.color_pair(col))
+				except (cu.error):
+					termResize(l.sizey, l.sizex)
+					pass
 		w.refresh()
+	
 	
 	def cDrawFrameDebug2(self, l, w):
 		for y in range(0, l.sizey-1):
 			for x in range(0, l.sizex-1):
-				w.addch(y,
-					x,
-					str(int(l.warr[y,x])),
-					cu.color_pair(int(l.warr[y,x])+1))
+				ch=str(int(l.warr[y,x]))
+				col=int(l.warr[y,x])+1
 				if l.arr[y,x]==0 and l.warr[y,x]==3:
-					w.addch(y,
-						x,
-						str(int(l.warr[y,x])),
-						cu.color_pair(99))
+					ch=str(int(l.warr[y,x]))
+					col=99
+				try:
+					w.addch(y, x, ch, cu.color_pair(col))
+				except (cu.error):
+					termResize(l.sizey, l.sizex)
+					pass
 		w.refresh()
 	
 	def cDrawFrame(self, l, w):
 		for y in range(0, l.sizey-1):
 			for x in range(0, l.sizex-1):
 				if l.arr[y,x]==1:
-					w.addch(y,
-						x,
-						'x',
-						cu.color_pair(int(l.warr[y,x])+1))
+					ch='x'
+					col=int(l.warr[y,x])+1
 				if l.arr[y,x]==0:
-					w.addch(y,
-						x,
-						' ',
-						cu.color_pair(1))
+					ch=' '
+					col=1
 				if l.arr[y,x]==0 and l.warr[y,x]==3:
-					w.addch(y,
-						x,
-						'*',
-						cu.color_pair(99))
+					ch='*'
+					col=99
+				try:
+					w.addch(y, x, ch, cu.color_pair(col))
+				except (cu.error):
+					termResize(l.sizey, l.sizex)
+					pass
 		w.refresh()
+
 
 def main():
 	#testLIFE()
 	#Game(delay=0)
 	#Game(delay=0.3)
 	#Game(x=319,yu89)
-	Game()
+	#Game()
 	
+	p=argparse.ArgumentParser()
+	p.add_argument("x", default=80,	type=int,	help="terminal height (min 80)")
+	p.add_argument("y", default=24,	type=int,	help="terminal width (min 24)")
+	p.add_argument("M", default=1,	type=int,	help="drawing mode (1 normal, 2 debug cell neigh, 3 neigh map)")
+	p.add_argument("d", default=0.1,	type=float,	help="delay between frames")
+	a=p.parse_args()
+	if int(a.x) < 80:
+		a.x=80
+	if int(a.y) < 24:
+		a.y=24
+	if int(a.M) < 1 or a.M > 3:
+		a.M=1
+	if int(a.d) < 0.1:
+		a.d=0
+	Game(x=a.x, y=a.y, delay=a.d, drawMode=a.M) 
+
 	print("exit")
+	exit(0)
 
 if __name__ == "__main__":
 	main()
