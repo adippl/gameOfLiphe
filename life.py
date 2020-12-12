@@ -32,9 +32,17 @@ import curses as cu
 import sys
 import argparse
 import signal
+import random
 np.random.seed(int(time.time()))
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(linewidth=200)
+
+gliderNE=[[0,1],[1,0],[2,0],[2,1],[2,2]]
+gliderSE=[[0,1],[1,2],[2,0],[2,1],[2,2]]
+gliderNW=[[0,1],[1,0],[0,0],[2,1],[0,2]]
+gliderSW=[[0,1],[1,2],[0,0],[2,1],[0,2]]
+gliderGunWstopper=[[0,4],[1,4],[0,5],[1,5],[10,4],[10,5],[10,6],[11,3],[11,7],[12,2],[12,8],[13,2],[13,8],[14,5],[15,3],[15,7],[16,4],[16,5],[16,6],[17,5],[20,2],[20,3],[20,4],[21,2],[21,3],[21,4],[22,1],[22,5],[24,0],[24,1],[24,5],[24,6],[23,10],[23,11],[24,10],[24,12],[25,12],[26,12],[26,13],[34,2],[34,3],[35,2],[35,3]]
+gliderGun=[[0,4],[1,4],[0,5],[1,5],[10,4],[10,5],[10,6],[11,3],[11,7],[12,2],[12,8],[13,2],[13,8],[14,5],[15,3],[15,7],[16,4],[16,5],[16,6],[17,5],[20,2],[20,3],[20,4],[21,2],[21,3],[21,4],[22,1],[22,5],[24,0],[24,1],[24,5],[24,6],[34,2],[34,3],[35,2],[35,3]]
 
 class Life:
 	#sizex=320
@@ -44,13 +52,21 @@ class Life:
 	gen=0
 	even=0
 	neigh=[]
-
+	
 	def __init__(self,x,y):
 		self.sizex=x
 		self.sizey=y
 		self.arr = np.zeros(shape=(self.sizey,self.sizex), dtype=np.int8)
 		self.warr = np.zeros(shape=(self.sizey,self.sizex), dtype=np.int8)
-
+	
+	def zero(self):
+		self.arr = np.zeros(shape=(self.sizey,self.sizex), dtype=np.int8)
+		self.warr = np.zeros(shape=(self.sizey,self.sizex), dtype=np.int8)
+	
+	def insertShape(self, shape, x, y):
+		for s in shape:
+			self.arr[s[1]+y][s[0]+x]=1
+	
 	def flipGen(self):
 		if self.even == 0:
 			self.even=1
@@ -149,11 +165,14 @@ class Life:
 		self.seedRandom()
 		self.genNmap()
 		self.genWmapCached()
+
+	def initAndZero(self):
+		self.genNmap()
+		self.genWmapCached()
 	
 	def reSeed(self):
 		self.seedRandom()
 		self.genWmapCached()
-		self.gen=1
 
 	def ng(self):
 		self.nextGeneration()
@@ -218,7 +237,7 @@ class Game:
 	even=0
 	neigh=[]
 
-	def __init__(self,x=80,y=24,drawMode=1,delay=0.1):
+	def __init__(self, x=80, y=24, drawMode=1, delay=0.1, maxgen=0, reseed=0, start=0, zero=0):
 		if x<80 or y<24:
 			print("x or y too small")
 			exit()
@@ -226,7 +245,13 @@ class Game:
 			print("wrong draw mode")
 			exit()
 		l=Life(x,y)
-		l.initAndSeed()
+		if start==0:
+			l.initAndSeed()
+			gliderSpawner=False
+		elif start==1:
+			l.initAndZero()
+			gliderSpawner=True
+		
 		termResize(l.sizey, l.sizex)
 		sc=cu.initscr()
 		sc.nodelay(1)
@@ -242,13 +267,12 @@ class Game:
 		cu.init_pair(7,cu.COLOR_BLACK,	cu.COLOR_RED)
 		cu.init_pair(8,cu.COLOR_BLACK,	cu.COLOR_RED)
 		cu.init_pair(99,cu.COLOR_GREEN,	cu.COLOR_BLACK)
-		
 		signal.signal(signal.SIGINT, sighand)
-		
 		sc.clear()
 		cu.curs_set(0)
 		w=cu.newwin(l.sizey,l.sizex)
-		#w.timeout(100)
+		w.timeout(100)
+
 		while True:
 			termResize(l.sizey, l.sizex)
 			start_time=time.time()
@@ -268,9 +292,10 @@ class Game:
 			
 			try:
 				w.addnstr(l.sizey-1, 0, "-=- generation: {} -=-".format(l.gen), 25)
-				w.addnstr(l.sizey-1, 25, " delay: {}".format(delay), 11)
+				w.addnstr(l.sizey-1, 25, " delay: {}  ".format(delay), 11)
 				w.addnstr(l.sizey-1, 36, " genTime: {}".format(ngTime), 14)
 				w.addnstr(l.sizey-1, 51, " drawTime: {}".format(drTime), 15)
+				w.addnstr(l.sizey-1, 66, " H: {} ".format(gliderSpawner), 10)
 			except (cu.error):
 				termResize(l.sizey, l.sizex)
 				pass
@@ -280,32 +305,92 @@ class Game:
 			time.sleep(delay)
 			
 			c=sc.getch()
+			#CONTROLS
 			if c==ord('1'):
 				drawMode=1
-			if c==ord('2'):
+			elif c==ord('2'):
 				drawMode=2
-			if c==ord('3'):
+			elif c==ord('3'):
 				drawMode=3
-			if c==ord('4'):
+			elif c==ord('4'):
 				drawMode=4
-			if c==ord('q'):
+			elif c==ord('q'):
 				cu.endwin()
 				exit(0)
-			if c==ord('+'):
+			elif c==ord('+'):
 				if delay>=0.1:
 					delay-=0.1
-			if c==ord('-'):
+			elif c==ord('-'):
 				delay+=0.1
-			if c==ord('='):
+			elif c==ord('='):
 				delay=0.1
-			if c==ord('9'):
+			elif c==ord('9'):
 				delay=1
-			if c==ord('8'):
+			elif c==ord('0'):
+				delay=2
+			elif c==ord('8'):
 				delay=0.3
-			if c==ord('7'):
+			elif c==ord('7'):
 				delay=0
-			if c==ord('s'):
+			elif c==ord('s'):
 				l.reSeed()
+			elif c==ord('z'):
+				l.zero()
+			elif c==ord('p'):
+				time.sleep(5)
+			elif c==ord('h'):
+				dir=random.randint(0,3)
+				x=random.randint(0, l.sizex-3)
+				y=random.randint(0, l.sizey-3)
+				if dir==0:
+					l.insertShape(gliderNE, x, y)
+				elif dir==1:
+					l.insertShape(gliderNW, x, y)
+				elif dir==2:
+					l.insertShape(gliderSE, x, y)
+				elif dir==3:
+					l.insertShape(gliderSW, x, y)
+				l.genWmapCached()
+			elif c==ord('H'):
+				if gliderSpawner:
+					gliderSpawner=False
+				else:
+					gliderSpawner=True
+			elif c==ord('T'):
+				l.insertShape(gliderSE, 0, 0)
+				l.insertShape(gliderNE, 0, 10)
+				l.insertShape(gliderNW, 10, 10)
+				l.insertShape(gliderSW, 10, 0)
+				l.genWmapCached()
+			elif c==ord('g'):
+				l.insertShape(gliderGun,0,0)
+				l.genWmapCached()
+			elif c==ord('G'):
+				l.insertShape(gliderGunWstopper,0,0)
+				l.genWmapCached()
+			
+			if gliderSpawner and l.gen%10==0:
+				dir=random.randint(0,3)
+				x=random.randint(0, l.sizex-3)
+				y=random.randint(0, l.sizey-3)
+				if dir==0:
+					l.insertShape(gliderNE, x, y)
+				elif dir==1:
+					l.insertShape(gliderNW, x, y)
+				elif dir==2:
+					l.insertShape(gliderSE, x, y)
+				elif dir==3:
+					l.insertShape(gliderSW, x, y)
+				l.genWmapCached()
+			
+			if maxgen!=0 and l.gen>=maxgen:
+				time.sleep(5)
+				cu.endwin()
+				sys.exit(0)
+			if reseed!=0 and l.gen%reseed==0:
+				l.reSeed()
+			if zero!=0 and l.gen%zero==0:
+				l.zero()
 			
 		cu.endwin()
 		
@@ -394,18 +479,29 @@ def main():
 	p.add_argument("-y", default=24,	type=int,	help="terminal width (min 24)")
 	p.add_argument("-M", default=1,	type=int,	help="drawing mode (1 normal, 2 debug cell neigh, 3 neigh map)")
 	p.add_argument("-d", default=0.1,	type=float,	help="delay between frames")
+	p.add_argument("-e", default=0,	type=int,	help="stop after E generatison")
+	p.add_argument("-r", default=0,	type=int,	help="reseed after R generatison")
+	p.add_argument("-z", default=0,	type=int,	help="zero every Z generations")
+	p.add_argument("-s", default=0,	type=int,	help="0 start seeded, 1 start empty + glider spawner")
 	a=p.parse_args()
-	if int(a.x) < 80:
+	if a.x < 80:
 		a.x=80
-	if int(a.y) < 24:
+	if a.y < 24:
 		a.y=24
-	if int(a.M) < 1 or a.M > 4:
+	if a.M < 1 or a.M > 4:
 		a.M=1
-	if int(a.d) < 0.1:
+	if a.d < 0.1:
 		a.d=0
-	Game(x=a.x, y=a.y, delay=a.d, drawMode=a.M) 
-
-	print("exit")
+	if a.e <0:
+		a.e=0
+	if a.r <0:
+		a.r=0
+	if a.s <0 or a.s>1:
+		a.r=0
+	if a.z <0:
+		a.z=0
+	
+	Game(x=a.x, y=a.y, delay=a.d, drawMode=a.M, maxgen=a.e, reseed=a.r, start=a.s, zero=a.z) 
 	exit(0)
 
 if __name__ == "__main__":
