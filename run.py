@@ -31,6 +31,7 @@ import time
 import curses as cu
 import sys
 import argparse
+import signal
 np.random.seed(int(time.time()))
 np.set_printoptions(threshold=np.inf)
 np.set_printoptions(linewidth=200)
@@ -205,6 +206,11 @@ def testLIFE():
 		print(w.warr)
 		time.sleep(0.05)
 
+def sighand(sig, frame):
+	cu.endwin()
+	exit(0)
+	
+
 class Game:
 	sizex=79
 	sizey=23
@@ -216,7 +222,7 @@ class Game:
 		if x<80 or y<24:
 			print("x or y too small")
 			exit()
-		if drawMode<1 or drawMode > 3:
+		if drawMode<1 or drawMode > 4:
 			print("wrong draw mode")
 			exit()
 		l=Life(x,y)
@@ -237,23 +243,34 @@ class Game:
 		cu.init_pair(8,cu.COLOR_BLACK,	cu.COLOR_RED)
 		cu.init_pair(99,cu.COLOR_GREEN,	cu.COLOR_BLACK)
 		
+		signal.signal(signal.SIGINT, sighand)
+		
 		sc.clear()
 		cu.curs_set(0)
 		w=cu.newwin(l.sizey,l.sizex)
 		#w.timeout(100)
 		while True:
 			termResize(l.sizey, l.sizex)
+			start_time=time.time()
 			l.ng()
+			ngTime=time.time()-start_time
+			
+			start_time=time.time()
 			if drawMode==1:
 				self.cDrawFrame(l,w)
 			elif drawMode==2:
 				self.cDrawFrameDebug(l,w)
 			elif drawMode==3:
 				self.cDrawFrameDebug2(l,w)
+			elif drawMode==4:
+				self.cDrawFrameClassic(l,w)
+			drTime=time.time()-start_time
 			
 			try:
 				w.addnstr(l.sizey-1, 0, "-=- generation: {} -=-".format(l.gen), 25)
-				w.addnstr(l.sizey-1, 25, "delay: {}".format(delay), 10)
+				w.addnstr(l.sizey-1, 25, " delay: {}".format(delay), 11)
+				w.addnstr(l.sizey-1, 36, " genTime: {}".format(ngTime), 14)
+				w.addnstr(l.sizey-1, 51, " drawTime: {}".format(drTime), 15)
 			except (cu.error):
 				termResize(l.sizey, l.sizex)
 				pass
@@ -269,6 +286,8 @@ class Game:
 				drawMode=2
 			if c==ord('3'):
 				drawMode=3
+			if c==ord('4'):
+				drawMode=4
 			if c==ord('q'):
 				cu.endwin()
 				exit(0)
@@ -344,6 +363,23 @@ class Game:
 					termResize(l.sizey, l.sizex)
 					pass
 		w.refresh()
+	
+	def cDrawFrameClassic(self, l, w):
+		for y in range(0, l.sizey-1):
+			for x in range(0, l.sizex-1):
+				if l.arr[y,x]==1:
+					ch='x'
+					col=int(l.warr[y,x])+1
+				if l.arr[y,x]==0:
+					ch=' '
+					col=1
+				try:
+					#w.addch(y, x, ch, cu.color_pair(col))
+					w.addch(y, x, ch)
+				except (cu.error):
+					termResize(l.sizey, l.sizex)
+					pass
+		w.refresh()
 
 
 def main():
@@ -354,16 +390,16 @@ def main():
 	#Game()
 	
 	p=argparse.ArgumentParser()
-	p.add_argument("x", default=80,	type=int,	help="terminal height (min 80)")
-	p.add_argument("y", default=24,	type=int,	help="terminal width (min 24)")
-	p.add_argument("M", default=1,	type=int,	help="drawing mode (1 normal, 2 debug cell neigh, 3 neigh map)")
-	p.add_argument("d", default=0.1,	type=float,	help="delay between frames")
+	p.add_argument("-x", default=80,	type=int,	help="terminal height (min 80)")
+	p.add_argument("-y", default=24,	type=int,	help="terminal width (min 24)")
+	p.add_argument("-M", default=1,	type=int,	help="drawing mode (1 normal, 2 debug cell neigh, 3 neigh map)")
+	p.add_argument("-d", default=0.1,	type=float,	help="delay between frames")
 	a=p.parse_args()
 	if int(a.x) < 80:
 		a.x=80
 	if int(a.y) < 24:
 		a.y=24
-	if int(a.M) < 1 or a.M > 3:
+	if int(a.M) < 1 or a.M > 4:
 		a.M=1
 	if int(a.d) < 0.1:
 		a.d=0
