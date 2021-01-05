@@ -1,0 +1,25 @@
+args:
+	./life.py -h
+
+keys:
+	q exit
+	1 normal mode
+	2 normal mode + neigh
+	3 neigh mode
+	4 classic black and white mode
+	+ decrease delay by 0.1
+	- increase delay by 0.1
+	= set delay to 0.1
+	0 set delay to 2
+	9 set delay to 1
+	8 set delay to 0.3
+	7 set delay to 0
+	s seed map with random data
+	z zero map
+	p sleep for 5 sec
+	h spawn random glider
+	H spawn random glider every 10 generations
+	T spawn colision of 4 gliders
+	g spawn glider gun
+	G spawn glider gun with blocker
+

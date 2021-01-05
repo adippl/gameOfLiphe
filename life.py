@@ -52,6 +52,7 @@ class Life:
 	gen=0
 	even=0
 	neigh=[]
+	wmapMode=True
 	
 	def __init__(self,x,y):
 		self.sizex=x
@@ -118,14 +119,17 @@ class Life:
 		return rl
 	
 	def genNmap(self):
-		self.neigh=[]
-		row=[]
-		for y in range(0, self.sizey):
+		if self.wmapMode:
+			self.neigh=[]
 			row=[]
-			for x in range(0, self.sizex):
-				row.append(self.getNeigh(x,y))
-			self.neigh.append(row)
-	
+			for y in range(0, self.sizey):
+				row=[]
+				for x in range(0, self.sizex):
+					row.append(self.getNeigh(x,y))
+				self.neigh.append(row)
+		else:
+			self.neigh=[]
+
 	def genWmapCached(self):
 		sum=0
 		for y in range(0, self.sizey):
@@ -139,6 +143,52 @@ class Life:
 				#print("DEBUG n "+str(self.neigh[y][x]))
 				#print("DEBUG sum "+str(sum))
 				#print("DEBUG written "+str(int(self.warr[n[1],n[0]])))
+
+	def genWmapNotCached(self):
+		sum=0
+		for y in range(0, self.sizey):
+			for x in range(0, self.sizex):
+				sum=0
+				#for n in self.neigh[y][x]:
+				#	sum+=self.arr[n[1],n[0]]
+				#rl=[]
+				e=False
+				s=False
+				w=False
+				n=False
+				if x == 0:
+					w=True
+				if y == 0:
+					n=True
+				if x >= self.sizex-1:
+					e=True
+				if y >= self.sizey-1:
+					s=True
+				
+				if not e :
+					sum+=self.arr[y][x+1]
+				if not s :
+					sum+=self.arr[y+1][x]
+				if not w :
+					sum+=self.arr[y][x-1]
+				if not n :
+					sum+=self.arr[y-1][x]
+				if (not e) and (not s):
+					sum+=self.arr[y+1][x+1]
+				if (not w) and (not n):
+					sum+=self.arr[y-1][x-1]
+				if (not e) and (not n):
+					sum+=self.arr[y-1][x+1]
+				if (not w) and (not s):
+					sum+=self.arr[y+1][x-1]
+				self.warr[y,x]=sum
+
+	def genWmap(self):
+		if self.wmapMode:
+			self.genWmapCached()
+		else:
+			self.genWmapNotCached()
+			
 	
 	def nextGeneration(self):
 		for y in range(0, self.sizey):
@@ -164,19 +214,19 @@ class Life:
 	def initAndSeed(self):
 		self.seedRandom()
 		self.genNmap()
-		self.genWmapCached()
+		self.genWmap()
 
 	def initAndZero(self):
 		self.genNmap()
-		self.genWmapCached()
+		self.genWmap()
 	
 	def reSeed(self):
 		self.seedRandom()
-		self.genWmapCached()
+		self.genWmap()
 
 	def ng(self):
 		self.nextGeneration()
-		self.genWmapCached()
+		self.genWmap()
 		self.gen+=1
 
 def termResize(y,x):
@@ -211,7 +261,7 @@ def testLIFE():
 	print(w.getNeigh(15,0))
 
 	w.genNmap()
-	w.genWmapCached()
+	w.genWmap()
 	print(w.arr)
 	print(w.warr)
 	print(w.neigh)
@@ -237,7 +287,7 @@ class Game:
 	even=0
 	neigh=[]
 
-	def __init__(self, x=80, y=24, drawMode=1, delay=0.1, maxgen=0, reseed=0, start=0, zero=0):
+	def __init__(self, x=80, y=24, drawMode=1, delay=0.1, maxgen=0, reseed=0, start=0, zero=0, cached=True):
 		if x<80 or y<24:
 			print("x or y too small")
 			exit()
@@ -252,7 +302,11 @@ class Game:
 			l.initAndZero()
 			gliderSpawner=True
 		
-		termResize(l.sizey, l.sizex)
+		l.wmapMode=cached
+		
+		#termResize(l.sizey, l.sizex)
+		#resize +1 to fix some strange bug
+		termResize(l.sizey+1, l.sizex+1)
 		sc=cu.initscr()
 		sc.nodelay(1)
 		cu.start_color()
@@ -324,10 +378,10 @@ class Game:
 				delay+=0.1
 			elif c==ord('='):
 				delay=0.1
-			elif c==ord('9'):
-				delay=1
 			elif c==ord('0'):
 				delay=2
+			elif c==ord('9'):
+				delay=1
 			elif c==ord('8'):
 				delay=0.3
 			elif c==ord('7'):
@@ -350,7 +404,7 @@ class Game:
 					l.insertShape(gliderSE, x, y)
 				elif dir==3:
 					l.insertShape(gliderSW, x, y)
-				l.genWmapCached()
+				l.genWmap()
 			elif c==ord('H'):
 				if gliderSpawner:
 					gliderSpawner=False
@@ -361,13 +415,13 @@ class Game:
 				l.insertShape(gliderNE, 0, 10)
 				l.insertShape(gliderNW, 10, 10)
 				l.insertShape(gliderSW, 10, 0)
-				l.genWmapCached()
+				l.genWmap()
 			elif c==ord('g'):
 				l.insertShape(gliderGun,0,0)
-				l.genWmapCached()
+				l.genWmap()
 			elif c==ord('G'):
 				l.insertShape(gliderGunWstopper,0,0)
-				l.genWmapCached()
+				l.genWmap()
 			
 			if gliderSpawner and l.gen%10==0:
 				dir=random.randint(0,3)
@@ -381,7 +435,7 @@ class Game:
 					l.insertShape(gliderSE, x, y)
 				elif dir==3:
 					l.insertShape(gliderSW, x, y)
-				l.genWmapCached()
+				l.genWmap()
 			
 			if maxgen!=0 and l.gen>=maxgen:
 				time.sleep(5)
@@ -391,9 +445,7 @@ class Game:
 				l.reSeed()
 			if zero!=0 and l.gen%zero==0:
 				l.zero()
-			
 		cu.endwin()
-		
 	
 	def cDrawFrameDebug(self, l, w):
 		for y in range(0, l.sizey-1):
@@ -483,6 +535,7 @@ def main():
 	p.add_argument("-r", default=0,	type=int,	help="reseed after R generatison")
 	p.add_argument("-z", default=0,	type=int,	help="zero every Z generations")
 	p.add_argument("-s", default=0,	type=int,	help="0 start seeded, 1 start empty + glider spawner")
+	p.add_argument("-c", default=1,	type=int,	help="1 == cached mode; 0 == non cached mode")
 	a=p.parse_args()
 	if a.x < 80:
 		a.x=80
@@ -500,8 +553,12 @@ def main():
 		a.r=0
 	if a.z <0:
 		a.z=0
+	if a.c==1:
+		lcached=True
+	else:
+		lcached=False
 	
-	Game(x=a.x, y=a.y, delay=a.d, drawMode=a.M, maxgen=a.e, reseed=a.r, start=a.s, zero=a.z) 
+	Game(x=a.x, y=a.y, delay=a.d, drawMode=a.M, maxgen=a.e, reseed=a.r, start=a.s, zero=a.z, cached=lcached) 
 	exit(0)
 
 if __name__ == "__main__":
